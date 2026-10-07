@@ -4,12 +4,10 @@ import Card from "../components/Card";
 import Button from "../components/Button";
 
 import SqlSetupForm from "../components/datasource/sql/SqlSetupForm";
-import MongoSetupForm from "../components/datasource/mongo/MongoSetupForm";
 import SpreadsheetSetupForm from "../components/datasource/spreadsheet/SpreadsheetSetupForm";
 
 const typeMeta = {
   sql: { title: "SQL", subtitle: "Connect MySQL or PostgreSQL" },
-  mongo: { title: "MongoDB", subtitle: "Connect using MongoDB URI" },
   spreadsheet: {
     title: "Spreadsheet",
     subtitle: "Upload CSV/Excel for analysis",
@@ -25,7 +23,6 @@ export default function DataSourceSetup() {
 
   const SetupForm = useMemo(() => {
     if (type === "sql") return SqlSetupForm;
-    if (type === "mongo") return MongoSetupForm;
     if (type === "spreadsheet") return SpreadsheetSetupForm;
     return null;
   }, [type]);
@@ -39,7 +36,7 @@ export default function DataSourceSetup() {
               Unsupported datasource
             </h1>
             <p className="text-gray-400 mb-6">
-              Please go back to dashboard and pick SQL, Mongo, or Spreadsheet.
+              Please go back to dashboard and pick SQL or Spreadsheet.
             </p>
             <Button onClick={() => navigate("/dashboard")}>Back</Button>
           </Card>

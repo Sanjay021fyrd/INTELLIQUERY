@@ -30,3 +30,9 @@ intelenv/
 data/
 notebooks/
 .env
+
+.claude/
+
+myvenv/
+
+myvenv/

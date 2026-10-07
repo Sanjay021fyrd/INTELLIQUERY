@@ -12,10 +12,18 @@ def users_collection() -> Collection:
     return get_db()["users"]
 
 
+def password_resets_collection() -> Collection:
+    return get_db()["password_resets"]
+
+
 def ensure_indexes() -> None:
     col = users_collection()
     col.create_index("email", unique=True)
     col.create_index("username", unique=True)
+
+    resets = password_resets_collection()
+    resets.create_index("token_hash", unique=True)
+    resets.create_index("expires_at", expireAfterSeconds=0)
 
 
 def user_public_from_doc(doc: Dict[str, Any]) -> Dict[str, Any]:
@@ -58,3 +66,39 @@ def find_user_public_by_id(user_id: str) -> Optional[Dict[str, Any]]:
     if not doc:
         return None
     return user_public_from_doc(doc)
+
+
+def update_user_password(user_id: str, password_hash: str) -> None:
+    users_collection().update_one(
+        {"_id": ObjectId(user_id)}, {"$set": {"password_hash": password_hash}}
+    )
+
+
+def create_password_reset(*, user_id: str, token_hash: str, expires_at: datetime) -> None:
+    # Invalidate any previous outstanding reset tokens for this user.
+    password_resets_collection().delete_many({"user_id": user_id})
+    password_resets_collection().insert_one(
+        {
+            "user_id": user_id,
+            "token_hash": token_hash,
+            "expires_at": expires_at,
+            "used": False,
+            "created_at": datetime.now(timezone.utc),
+        }
+    )
+
+
+def find_valid_reset(token_hash: str) -> Optional[Dict[str, Any]]:
+    return password_resets_collection().find_one(
+        {
+            "token_hash": token_hash,
+            "used": False,
+            "expires_at": {"$gt": datetime.now(timezone.utc)},
+        }
+    )
+
+
+def mark_reset_used(token_hash: str) -> None:
+    password_resets_collection().update_one(
+        {"token_hash": token_hash}, {"$set": {"used": True}}
+    )

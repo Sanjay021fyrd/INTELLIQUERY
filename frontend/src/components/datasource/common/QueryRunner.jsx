@@ -54,7 +54,7 @@ function renderResults(results) {
     );
   }
 
-  // object (mongo single doc / pandas stats / etc)
+  // object (pandas stats / etc)
   return (
     <pre className="text-gray-200 bg-black border border-gray-800 rounded-lg p-4 overflow-auto">
       {JSON.stringify(results, null, 2)}

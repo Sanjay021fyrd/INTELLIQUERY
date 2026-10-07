@@ -2,7 +2,6 @@ import logging
 from typing import Any, Dict, Optional
 
 from ai.agents.sql_agent import SQLAgent
-from ai.agents.mongo_agent import MongoAgent
 from ai.agents.pandas_agent import PandasAgent
 from ai.schemas import DataSourceType, QueryResponse
 from datasources.store import get_datasource_by_id
@@ -13,21 +12,18 @@ logger = logging.getLogger(__name__)
 class AIRouter:
     """
     AI Router that routes natural language queries to the appropriate agent
-    based on the datasource type (SQL, MongoDB, Pandas).
+    based on the datasource type (SQL, Pandas).
     """
-    
+
     def __init__(self):
         self.sql_agent = SQLAgent()
-        self.mongo_agent = MongoAgent()
         self.pandas_agent = PandasAgent()
-        
+
         # Agent mapping by datasource type
         self._agents = {
             "mysql": self.sql_agent,
             "psql": self.sql_agent,
             "sql": self.sql_agent,
-            "mongo": self.mongo_agent,
-            "mongodb": self.mongo_agent,
             "pandas": self.pandas_agent,
             "csv": self.pandas_agent,
             "excel": self.pandas_agent,
@@ -46,8 +42,6 @@ class AIRouter:
             "mysql": DataSourceType.SQL,
             "psql": DataSourceType.SQL,
             "sql": DataSourceType.SQL,
-            "mongo": DataSourceType.MONGO,
-            "mongodb": DataSourceType.MONGO,
             "pandas": DataSourceType.PANDAS,
             "csv": DataSourceType.PANDAS,
             "excel": DataSourceType.PANDAS,
@@ -166,12 +160,6 @@ class AIRouter:
                 return {
                     "type": "sql",
                     "tables": tables
-                }
-            elif datasource_type == "mongo":
-                collections = await self.mongo_agent.get_collections_info(datasource)
-                return {
-                    "type": "mongo",
-                    "collections": collections
                 }
             elif datasource_type == "pandas":
                 info = await self.pandas_agent.get_dataframe_info(datasource)

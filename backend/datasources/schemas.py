@@ -14,11 +14,6 @@ class SQLConnectionRequest(BaseModel):
     password: str
     database: str
 
-class MongoConnectionRequest(BaseModel):
-    uri: str
-    database: str
-    collection: str  # Required collection name
-
 class DataSourceResponse(BaseModel):
     message: str
     status: str

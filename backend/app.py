@@ -2,12 +2,17 @@ import os
 import logging
 
 from dotenv import load_dotenv
+
+load_dotenv()
+
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 
 from auth.middleware import AuthMiddleware
 from auth.router import router as auth_router
+from auth.security import frontend_urls
 from datasources.router import router as datasources_router
 from ai.router import router as ai_router
 from auth.store import ensure_indexes
@@ -19,7 +24,7 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 
-load_dotenv()
+
 
 app = FastAPI(
     title="IntelliQuery API",
@@ -27,15 +32,18 @@ app = FastAPI(
     version="1.0.0"
 )
 
-cors_origins = [o.strip() for o in os.getenv("CORS_ORIGINS", "").split(",") if o.strip()]
-if cors_origins:
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=cors_origins,
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
+# Allowed browser origins: local dev, the configured frontend URL (e.g. a LAN IP or public
+# domain used in reset-password links), and any extras from CORS_ORIGINS.
+cors_origins = set(frontend_urls())
+cors_origins.update(o.strip().rstrip("/") for o in os.getenv("CORS_ORIGINS", "").split(",") if o.strip())
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=sorted(cors_origins),
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 app.add_middleware(AuthMiddleware)
 app.include_router(auth_router)

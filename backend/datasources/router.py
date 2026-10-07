@@ -3,13 +3,11 @@ import shutil
 from typing import List
 from fastapi import APIRouter, HTTPException, UploadFile, File, status, Depends
 from sqlalchemy import create_engine, text
-from pymongo import MongoClient
 import pandas as pd
 
 from auth.dependencies import require_user
 from datasources.schemas import (
     SQLConnectionRequest,
-    MongoConnectionRequest,
     DataSourceResponse,
     SQLType
 )
@@ -57,45 +55,6 @@ def connect_sql(payload: SQLConnectionRequest, user: dict = Depends(require_user
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Failed to connect to database: {str(e)}"
-        )
-
-@router.post("/mongo/connect", response_model=DataSourceResponse)
-def connect_mongo(payload: MongoConnectionRequest, user: dict = Depends(require_user)):
-    """
-    Connect to a MongoDB database.
-    """
-    try:
-        client = MongoClient(payload.uri, serverSelectionTimeoutMS=5000)
-        # Trigger a connection to verify validity
-        client.admin.command('ping')
-        
-        # Check if database exists or we can access it
-        db = client[payload.database]
-        
-        # List collections and verify the specified collection exists
-        collections = db.list_collection_names()
-        if payload.collection not in collections:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Collection '{payload.collection}' not found in database '{payload.database}'. Available collections: {', '.join(collections[:5])}"
-            )
-        
-        # Save connection details
-        saved = save_datasource(str(user["id"]), "mongo", payload.dict())
-        datasource_id = str(saved["_id"]) if saved else None
-        
-        return DataSourceResponse(
-            message="Successfully connected to MongoDB",
-            status="success",
-            datasource_id=datasource_id,
-            details={"database": payload.database, "collection": payload.collection}
-        )
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Failed to connect to MongoDB: {str(e)}"
         )
 
 @router.post("/pandas/upload", response_model=DataSourceResponse)

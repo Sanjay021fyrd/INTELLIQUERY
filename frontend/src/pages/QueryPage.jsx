@@ -4,7 +4,6 @@ import Card from "../components/Card";
 import Button from "../components/Button";
 
 import SqlQueryPanel from "../components/datasource/sql/SqlQueryPanel";
-import MongoQueryPanel from "../components/datasource/mongo/MongoQueryPanel";
 import SpreadsheetQueryPanel from "../components/datasource/spreadsheet/SpreadsheetQueryPanel";
 import SessionSidebar from "../components/datasource/common/SessionSidebar";
 import { loadDatasourceId } from "../components/datasource/common/storage";
@@ -12,7 +11,6 @@ import { datasourceAPI, aiAPI } from "../utils/api";
 
 const typeTitle = {
   sql: "SQL",
-  mongo: "MongoDB",
   spreadsheet: "Spreadsheet",
 };
 
@@ -104,8 +102,6 @@ export default function QueryPage() {
           // Extract database name based on type
           if (type === "sql") {
             setDatasourceName(datasource.details?.database || datasourceId);
-          } else if (type === "mongo") {
-            setDatasourceName(datasource.details?.database || datasourceId);
           } else if (type === "spreadsheet") {
             setDatasourceName(datasource.details?.filename || datasourceId);
           } else {
@@ -125,7 +121,6 @@ export default function QueryPage() {
 
   const Panel = useMemo(() => {
     if (type === "sql") return SqlQueryPanel;
-    if (type === "mongo") return MongoQueryPanel;
     if (type === "spreadsheet") return SpreadsheetQueryPanel;
     return null;
   }, [type]);

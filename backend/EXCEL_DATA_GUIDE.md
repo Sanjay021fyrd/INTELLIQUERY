@@ -244,14 +244,3 @@ This CSV is designed to work seamlessly with:
 - **Voice Queries**: Voice-to-query conversion
 - **Excel Upload**: Direct file upload support
 
-## Comparison with MongoDB Version
-
-| Feature | MongoDB | Excel/CSV |
-|---------|---------|-----------|
-| Records | 5,000 | 5,000 |
-| Fields/Columns | 16 | 15 |
-| Data Source | NoSQL Database | File-based |
-| Query Language | MongoDB queries | Pandas/SQL-like |
-| Use Case | Database demos | File analysis demos |
-
-Both datasets contain the same business logic and can be used interchangeably for demos.

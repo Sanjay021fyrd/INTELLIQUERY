@@ -1,6 +1,10 @@
 import axios from "axios";
 
-const API_BASE_URL = "http://localhost:8000";
+// Default to the host the page was loaded from, so the app also works when opened
+// from another device (e.g. a phone via the laptop's LAN IP). Override with VITE_API_URL.
+const API_BASE_URL =
+  import.meta.env.VITE_API_URL ||
+  `${window.location.protocol}//${window.location.hostname}:8000`;
 
 // Create axios instance with default config
 const api = axios.create({
@@ -18,8 +22,12 @@ api.interceptors.response.use(
     if (error.response && error.response.status === 401) {
       // Clear local storage and reload to login
       localStorage.removeItem("user");
-      // Only redirect if not already on login/register page
-      if (!window.location.pathname.match(/^\/(login|register)\/?$/)) {
+      // Only redirect if not already on a public auth page
+      if (
+        !window.location.pathname.match(
+          /^\/(login|register|forgot-password|reset-password)\/?$/,
+        )
+      ) {
         window.location.href = "/login";
       }
     }
@@ -33,6 +41,8 @@ export const authAPI = {
   login: (data) => api.post("/auth/login", data),
   logout: () => api.post("/auth/logout"),
   getCurrentUser: () => api.get("/auth/me"),
+  forgotPassword: (data) => api.post("/auth/forgot-password", data),
+  resetPassword: (data) => api.post("/auth/reset-password", data),
 };
 
 // Datasource endpoints
@@ -42,7 +52,6 @@ export const datasourceAPI = {
   delete: (id) => api.delete(`/datasources/${id}`),
 
   connectSql: (data) => api.post("/datasources/sql/connect", data),
-  connectMongo: (data) => api.post("/datasources/mongo/connect", data),
   uploadPandas: (file) => {
     const form = new FormData();
     form.append("file", file);

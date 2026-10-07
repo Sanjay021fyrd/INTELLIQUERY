@@ -7,14 +7,12 @@ import { datasourceAPI, aiAPI, formatApiError } from "../utils/api";
 const typeRouteMap = {
   mysql: "sql",
   psql: "sql",
-  mongo: "mongo",
   pandas: "spreadsheet",
 };
 
 const typeLabelMap = {
   mysql: "MySQL",
   psql: "PostgreSQL",
-  mongo: "MongoDB",
   pandas: "Spreadsheet",
 };
 
@@ -82,7 +80,6 @@ const Dashboard = () => {
   const typeRouteFromDs = (dsType) => {
     if (dsType === "sql" || dsType === "mysql" || dsType === "psql")
       return "sql";
-    if (dsType === "mongo") return "mongo";
     if (dsType === "pandas") return "spreadsheet";
     return "sql";
   };
@@ -108,27 +105,6 @@ const Dashboard = () => {
       ),
       color: "from-yellow-600 to-yellow-500",
       routeType: "sql",
-    },
-    {
-      title: "MongoDB Query",
-      description: "Access NoSQL databases",
-      icon: (
-        <svg
-          className="w-8 h-8"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
-          />
-        </svg>
-      ),
-      color: "from-yellow-500 to-yellow-400",
-      routeType: "mongo",
     },
     {
       title: "Spreadsheet Analysis",
@@ -265,7 +241,7 @@ const Dashboard = () => {
         {/* Quick Actions */}
         <div className="mb-8">
           <h2 className="text-2xl font-bold text-white mb-4">Quick Actions</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {quickActions.map((action, index) => (
               <Card
                 key={index}

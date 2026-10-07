@@ -8,21 +8,27 @@ import Card from "../components/Card";
 const Login = ({ onLogin }) => {
   const navigate = useNavigate();
   const location = useLocation();
+
   const [formData, setFormData] = useState({
     email: "",
     password: "",
   });
+  const [rememberMe, setRememberMe] = useState(false);
+
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [apiError, setApiError] = useState("");
+
   const successMessage = location.state?.message;
 
   const handleChange = (e) => {
     const { name, value } = e.target;
+
     setFormData((prev) => ({
       ...prev,
       [name]: value,
     }));
+
     if (errors[name]) {
       setErrors((prev) => ({ ...prev, [name]: "" }));
     }
@@ -49,6 +55,7 @@ const Login = ({ onLogin }) => {
     setApiError("");
 
     const validationErrors = validateForm();
+
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
       return;
@@ -60,6 +67,7 @@ const Login = ({ onLogin }) => {
       const response = await authAPI.login({
         email: formData.email,
         password: formData.password,
+        remember_me: rememberMe,
       });
 
       if (response.status === 200) {
@@ -68,6 +76,7 @@ const Login = ({ onLogin }) => {
           email: formData.email,
           ...response.data,
         };
+
         localStorage.setItem("user", JSON.stringify(userData));
 
         // Call the onLogin callback
@@ -80,6 +89,7 @@ const Login = ({ onLogin }) => {
       const msg =
         formatApiError(error.response?.data) ||
         "Login failed. Please check your credentials.";
+
       setApiError(msg);
     } finally {
       setLoading(false);
@@ -99,7 +109,10 @@ const Login = ({ onLogin }) => {
           <h2 className="text-4xl font-bold bg-gradient-to-r from-yellow-400 to-yellow-600 bg-clip-text text-transparent mb-2">
             Welcome Back
           </h2>
-          <p className="text-gray-400">Login to continue to IntelliQuery</p>
+
+          <p className="text-gray-400">
+            Login to continue to IntelliQuery
+          </p>
         </div>
 
         <Card>
@@ -172,16 +185,22 @@ const Login = ({ onLogin }) => {
               <label className="flex items-center">
                 <input
                   type="checkbox"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
                   className="w-4 h-4 text-yellow-600 bg-gray-900 border-gray-700 rounded focus:ring-yellow-500 focus:ring-2"
                 />
-                <span className="ml-2 text-sm text-gray-400">Remember me</span>
+
+                <span className="ml-2 text-sm text-gray-400">
+                  Remember me
+                </span>
               </label>
-              <a
-                href="#"
+
+              <Link
+                to="/forgot-password"
                 className="text-sm text-yellow-400 hover:text-yellow-300 transition-colors"
               >
                 Forgot password?
-              </a>
+              </Link>
             </div>
 
             <Button type="submit" fullWidth disabled={loading}>
@@ -207,3 +226,4 @@ const Login = ({ onLogin }) => {
 };
 
 export default Login;
+

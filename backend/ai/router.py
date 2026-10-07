@@ -43,7 +43,7 @@ async def execute_query(
     Execute a natural language query against a datasource.
     
     The AI router will:
-    1. Determine the datasource type (SQL, MongoDB, Pandas)
+    1. Determine the datasource type (SQL, Pandas)
     2. Route to the appropriate agent
     3. Generate the query using Groq LLM
     4. Validate the query is read-only
@@ -103,7 +103,6 @@ async def get_datasource_schema(
     
     Returns:
     - For SQL: List of tables with columns
-    - For MongoDB: List of collections with fields
     - For Pandas: DataFrame columns and stats
     """
     schema_info = await ai_router.get_schema_info(

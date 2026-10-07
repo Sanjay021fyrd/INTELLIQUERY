@@ -112,7 +112,7 @@ function renderResults(results) {
     return <PaginatedTable results={results} />;
   }
 
-  // object (mongo single doc / pandas stats / etc)
+  // object (pandas stats / etc)
   return (
     <pre className="text-gray-200 bg-gray-900 border border-gray-700 rounded-lg p-3 overflow-auto text-xs mt-2">
       {JSON.stringify(results, null, 2)}

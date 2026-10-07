@@ -235,17 +235,6 @@ Output:
 - show me daily sales trend
 ```
 
-**MongoDB** (collections: customers, transactions)
-```
-Input: "count"
-Output:
-- count total customers
-- count transactions by status
-- count customers by country
-- count transactions from last month
-- count active users
-```
-
 **Pandas** (columns: date, product, sales, region)
 ```
 Input: "find"

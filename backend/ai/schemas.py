@@ -6,7 +6,6 @@ from pydantic import BaseModel, field_validator
 
 class DataSourceType(str, Enum):
     SQL = "sql"
-    MONGO = "mongo"
     PANDAS = "pandas"
 
 
@@ -21,7 +20,7 @@ class QueryResponse(BaseModel):
     """Response schema for query execution."""
     success: bool
     query: str  # The natural language query
-    generated_query: str  # SQL/MongoDB/Pandas query generated
+    generated_query: str  # SQL/Pandas query generated
     datasource_type: DataSourceType
     normal_form: Optional[str] = None  # SQL-only heuristic label (2NF/3NF)
     results: Optional[Union[List[Dict[str, Any]], Dict[str, Any]]] = None
@@ -37,7 +36,6 @@ class SchemaInfo(BaseModel):
     """Schema information for a datasource."""
     datasource_type: DataSourceType
     tables: Optional[List[Dict[str, Any]]] = None  # For SQL
-    collections: Optional[List[Dict[str, Any]]] = None  # For MongoDB
     columns: Optional[List[str]] = None  # For Pandas
     sample_data: Optional[Dict[str, Any]] = None
 

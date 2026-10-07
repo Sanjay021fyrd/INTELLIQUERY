@@ -121,3 +121,47 @@ def send_results_email(
     except smtplib.SMTPException as exc:
         logger.error("SMTP error while sending email: %s", exc)
         raise
+
+
+def send_password_reset_email(to_email: str, reset_links: "str | list[str]") -> None:
+    """
+    Send password reset link(s) to a user. All links carry the same token.
+
+    Raises:
+        RuntimeError: If SMTP is not configured.
+        smtplib.SMTPException: On any SMTP-level failure.
+    """
+    config = _get_smtp_config()
+
+    msg = MIMEMultipart("mixed")
+    msg["From"] = config["from_addr"]
+    msg["To"] = to_email
+    msg["Subject"] = "Reset your IntelliQuery password"
+
+    if isinstance(reset_links, str):
+        reset_links = [reset_links]
+    links_text = "\n\n".join(reset_links)
+    plural = "s" if len(reset_links) > 1 else ""
+
+    body = (
+        "We received a request to reset your IntelliQuery password.\n\n"
+        f"Click the link{plural} below to choose a new password"
+        f"{' (any one of them works)' if plural else ''}:\n{links_text}\n\n"
+        "This link will expire soon. If you didn't request this, you can safely ignore this email."
+    )
+    msg.attach(MIMEText(body, "plain", "utf-8"))
+
+    try:
+        with smtplib.SMTP(config["host"], config["port"], timeout=30) as server:
+            server.ehlo()
+            server.starttls()
+            server.ehlo()
+            server.login(config["user"], config["password"])
+            server.sendmail(config["from_addr"], [to_email], msg.as_string())
+        logger.info("Password reset email sent to %s", to_email)
+    except smtplib.SMTPAuthenticationError:
+        logger.error("SMTP authentication failed. Check SMTP_USER / SMTP_PASSWORD.")
+        raise
+    except smtplib.SMTPException as exc:
+        logger.error("SMTP error while sending password reset email: %s", exc)
+        raise

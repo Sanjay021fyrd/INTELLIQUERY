@@ -67,9 +67,6 @@ def save_datasource(user_id: str, type: str, details: Dict[str, Any]) -> Dict[st
     if type in ["mysql", "psql"]:
         query["details.host"] = details["host"]
         query["details.database"] = details["database"]
-    elif type == "mongo":
-        query["details.database"] = details["database"]
-        # URI might be different but pointing to same DB, hard to tell.
     
     update = {
         "$set": {

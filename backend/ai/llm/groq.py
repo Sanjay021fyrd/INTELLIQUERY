@@ -6,7 +6,7 @@ from groq import Groq, APIError
 logger = logging.getLogger(__name__)
 
 # Primary Groq LLM model
-GROQ_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct"
+GROQ_MODEL = "openai/gpt-oss-120b"
 
 
 def get_groq_client() -> Optional[Groq]:
@@ -28,7 +28,7 @@ async def generate_with_groq(
     
     Args:
         prompt: The user's natural language query
-        query_type: One of 'sql', 'mongo', 'pandas'
+        query_type: One of 'sql', 'pandas'
         schema_context: Schema information for the datasource
         
     Returns:
@@ -44,30 +44,14 @@ generate ONLY a valid SELECT SQL query. Do not include any explanations, just th
 IMPORTANT: Only generate READ-ONLY queries (SELECT). Never generate INSERT, UPDATE, DELETE, DROP, ALTER, CREATE, or any other modifying queries.
 Return ONLY the SQL query, nothing else.""",
         
-        "mongo": """You are an expert MongoDB query generator. Given a natural language question and collection schema,
-generate a valid MongoDB query in JSON format.
-
-IMPORTANT:
-- Only generate READ-ONLY queries (find, aggregate, count, distinct)
-- Never generate insert, update, delete, drop, or any modifying operations
-- Return pure JSON only, no explanation
-
-SUPPORTED FORMATS:
-For aggregate: {"aggregate": [{"$group": {...}}, {"$sort": {...}}]}
-For find: {"find": {...}, "projection": {...}, "sort": {...}, "limit": 10}
-For count: {"count": {...}}
-For distinct: {"distinct": "field_name", "filter": {...}}
-
-Return ONLY the MongoDB query as a JSON object.""",
-        
         "pandas": """You are an expert Pandas code generator. Given a natural language question and DataFrame columns,
 generate ONLY valid Pandas code to query the data. Assume the DataFrame is named 'df'.
 IMPORTANT: Only generate READ-ONLY operations. Never generate operations that modify the original DataFrame.
 Return ONLY the Pandas code, nothing else. The code should return a DataFrame or Series."""
     }
-    
+
     system_prompt = system_prompts.get(query_type, system_prompts["sql"])
-    
+
     user_message = f"""Schema/Columns:
 {schema_context}
 
@@ -116,7 +100,6 @@ async def generate_with_groq_streaming(
     
     system_prompts = {
         "sql": "You are an expert SQL query generator. Generate ONLY valid SELECT queries.",
-        "mongo": "You are an expert MongoDB query generator. Generate ONLY valid read queries.",
         "pandas": "You are an expert Pandas code generator. Generate ONLY read operations."
     }
     
@@ -218,7 +201,7 @@ async def refine_query_with_groq(
         original_query: The user's natural language question
         generated_query: The previously generated query that failed
         error_message: The validation or execution error
-        query_type: One of 'sql', 'mongo', 'pandas'
+        query_type: One of 'sql', 'pandas'
         schema_context: Schema information for the datasource
 
     Returns:
@@ -235,12 +218,6 @@ Rules:
 - ONLY output a valid SELECT SQL query
 - No explanations, no markdown, just the raw SQL query
 - Ensure correctness against the provided schema""",
-        "mongo": """You are an expert MongoDB query debugger and generator.
-You will be given a MongoDB query that failed along with the error. Fix the query.
-Rules:
-- ONLY output a valid read-only MongoDB query as a JSON object
-- No explanations, no markdown, just the raw JSON
-- Supported formats: {"aggregate": [...]}, {"find": {...}}, {"count": {...}}, {"distinct": ...}""",
         "pandas": """You are an expert Pandas code debugger and generator.
 You will be given Pandas code that failed along with the error. Fix the code.
 Rules:

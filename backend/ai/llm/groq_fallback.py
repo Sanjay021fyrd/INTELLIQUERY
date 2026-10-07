@@ -28,7 +28,7 @@ async def generate_with_groq(
     
     Args:
         prompt: The user's natural language query
-        query_type: One of 'sql', 'mongo', 'pandas'
+        query_type: One of 'sql', 'pandas'
         schema_context: Schema information for the datasource
         
     Returns:
@@ -43,11 +43,6 @@ async def generate_with_groq(
 generate ONLY a valid SELECT SQL query. Do not include any explanations, just the raw SQL query.
 IMPORTANT: Only generate READ-ONLY queries (SELECT). Never generate INSERT, UPDATE, DELETE, DROP, ALTER, CREATE, or any other modifying queries.
 Return ONLY the SQL query, nothing else.""",
-        
-        "mongo": """You are an expert MongoDB query generator. Given a natural language question and collection schema,
-generate ONLY a valid MongoDB find/aggregate query in JSON format.
-IMPORTANT: Only generate READ-ONLY queries (find, aggregate). Never generate insert, update, delete, drop, or any modifying operations.
-Return ONLY the MongoDB query as a JSON object, nothing else.""",
         
         "pandas": """You are an expert Pandas code generator. Given a natural language question and DataFrame columns,
 generate ONLY valid Pandas code to query the data. Assume the DataFrame is named 'df'.
@@ -105,7 +100,6 @@ async def generate_with_groq_streaming(
     
     system_prompts = {
         "sql": "You are an expert SQL query generator. Generate ONLY valid SELECT queries.",
-        "mongo": "You are an expert MongoDB query generator. Generate ONLY valid read queries.",
         "pandas": "You are an expert Pandas code generator. Generate ONLY read operations."
     }
     

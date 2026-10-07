@@ -100,8 +100,6 @@ class QueryAutocomplete:
         try:
             if ds_type in ["mysql", "psql", "sql"]:
                 summary = await self._get_sql_schema_summary(datasource)
-            elif ds_type in ["mongo", "mongodb"]:
-                summary = await self._get_mongo_schema_summary(datasource)
             elif ds_type in ["pandas", "csv", "excel"]:
                 summary = await self._get_pandas_schema_summary(datasource)
             else:
@@ -132,24 +130,6 @@ class QueryAutocomplete:
         except Exception as e:
             logger.error(f"SQL schema error: {e}")
             return "SQL database"
-    
-    async def _get_mongo_schema_summary(self, datasource: Dict[str, Any]) -> str:
-        """Get compact MongoDB schema summary."""
-        try:
-            from ai.agents.mongo_agent import MongoAgent
-            agent = MongoAgent()
-            collections_info = await agent.get_collections_info(datasource)
-            
-            summary_parts = []
-            for coll in collections_info[:10]:
-                fields = coll.get("fields", [])[:10]
-                summary_parts.append(f"{coll['name']}({', '.join(fields)})")
-            
-            return f"Collections: {'; '.join(summary_parts)}"
-            
-        except Exception as e:
-            logger.error(f"Mongo schema error: {e}")
-            return "MongoDB database"
     
     async def _get_pandas_schema_summary(self, datasource: Dict[str, Any]) -> str:
         """Get compact Pandas schema summary."""
@@ -203,7 +183,7 @@ Your {limit} suggestions:"""
             
             # Fast, low-temperature completion
             completion = client.chat.completions.create(
-                model="llama-3.3-70b-versatile",  # Fastest Groq model
+                model="openai/gpt-oss-120b",  # Fastest Groq model
                 messages=[
                     {"role": "user", "content": prompt}
                 ],

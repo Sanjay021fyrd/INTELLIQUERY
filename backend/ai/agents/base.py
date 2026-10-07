@@ -67,22 +67,6 @@ Rules:
 
 SQL Query:""",
             
-            "mongo": f"""Given the following MongoDB collection schema:
-{schema_context}
-
-Convert the following natural language query to a valid MongoDB query:
-"{natural_query}"
-
-Rules:
-1. ONLY generate read operations (find or aggregate)
-2. Return the query as a JSON object
-3. For aggregate operations: {{"aggregate": [pipeline stages]}}
-   Example: {{"aggregate": [{{"$group": {{"_id": "$field", "count": {{"$sum": 1}}}}}}, {{"$sort": {{"count": -1}}}}]}}
-4. For find operations: {{"find": {{}}, "projection": {{}}, "sort": {{}}, "limit": 10}}
-5. Do not include any explanation or markdown
-
-MongoDB Query:""",
-            
             "pandas": f"""Given a DataFrame 'df' with the following columns:
 {schema_context}
 
@@ -192,7 +176,7 @@ Pandas Code:"""
         query = query.strip()
         
         # Remove common prefixes
-        prefixes_to_remove = ['SQL:', 'Query:', 'MongoDB Query:', 'Pandas Code:']
+        prefixes_to_remove = ['SQL:', 'Query:', 'Pandas Code:']
         for prefix in prefixes_to_remove:
             if query.lower().startswith(prefix.lower()):
                 query = query[len(prefix):].strip()
