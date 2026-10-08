@@ -42,6 +42,7 @@ async def generate_with_groq(
         "sql": """You are an expert SQL query generator. Given a natural language question and database schema, 
 generate ONLY a valid SELECT SQL query. Do not include any explanations, just the raw SQL query.
 IMPORTANT: Only generate READ-ONLY queries (SELECT). Never generate INSERT, UPDATE, DELETE, DROP, ALTER, CREATE, or any other modifying queries.
+When comparing a text column to a literal value, compare case-insensitively, e.g. LOWER(status) = 'completed' (write the literal in lowercase), because the capitalisation of the stored values is not shown in the schema.
 Return ONLY the SQL query, nothing else.""",
         
         "pandas": """You are an expert Pandas code generator. Given a natural language question and DataFrame columns,
@@ -217,7 +218,8 @@ You will be given a SQL query that failed along with the error. Fix the query.
 Rules:
 - ONLY output a valid SELECT SQL query
 - No explanations, no markdown, just the raw SQL query
-- Ensure correctness against the provided schema""",
+- Ensure correctness against the provided schema
+- Compare text columns to literals case-insensitively, e.g. LOWER(status) = 'completed'""",
         "pandas": """You are an expert Pandas code debugger and generator.
 You will be given Pandas code that failed along with the error. Fix the code.
 Rules:
@@ -323,6 +325,15 @@ async def validate_query_with_llm(
 
     validator_model = "llama-3.3-70b-versatile"  # Use a stronger model for validation
 
+    # The SQL schema context lists names and types only, so stored text values (and their
+    # capitalisation) are unknown; a case-sensitive text filter can silently match nothing.
+    sql_case_rule = (
+        "- For SQL, comparisons of text columns to literal values must be case-insensitive "
+        "(for example LOWER(status) = 'completed'), because the stored capitalisation is unknown; "
+        "flag case-sensitive comparisons and give the fix\n"
+        if query_type == "sql" else ""
+    )
+
     system_prompt = f"""You are an expert {query_type.upper()} query validator for a data platform.
 Given a natural language query, a database/collection schema, and a generated {query_type.upper()} query or code, your task is to validate if the generated query correctly, safely, and optimally answers the user's natural language query using the provided schema.
 
@@ -331,7 +342,7 @@ Consider:
 - Is the logic correct for the requested aggregation, filtering, or sorting?
 - Are JOINs correct and complete?
 - Are there syntax errors or hallucinations of columns that don't exist?
-
+{sql_case_rule}
 Respond with ONLY a JSON object (no markdown formatting, no code blocks) with the exact structure:
 {{
     "is_valid": true,
