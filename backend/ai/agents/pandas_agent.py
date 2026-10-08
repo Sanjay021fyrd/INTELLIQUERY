@@ -1,7 +1,9 @@
 import re
 import ast
+import math
 from typing import Any, Dict, List, Tuple
 import logging
+import numpy as np
 import pandas as pd
 
 from ai.agents.base import BaseAgent
@@ -172,18 +174,49 @@ Sample values:
             result = eval(code, {"__builtins__": SAFE_BUILTINS}, namespace)
             return result
         except SyntaxError:
-            # If it's not an expression, try exec
-            local_ns = namespace.copy()
-            exec(code, {"__builtins__": SAFE_BUILTINS}, local_ns)
-            
+            # Multi-statement code. Run it in a single namespace (so comprehensions
+            # and lambdas can see earlier variables) and, like a REPL, use the
+            # value of a trailing expression as the result.
+            local_ns = {"__builtins__": SAFE_BUILTINS, **namespace}
+            tree = ast.parse(code)
+            last = tree.body[-1] if tree.body else None
+
+            if isinstance(last, ast.Expr):
+                tree.body.pop()
+                exec(compile(tree, "<query>", "exec"), local_ns)
+                return eval(compile(ast.Expression(last.value), "<query>", "eval"), local_ns)
+
+            exec(compile(tree, "<query>", "exec"), local_ns)
+
             # Look for result variable or return the last df operation
             if 'result' in local_ns:
                 return local_ns['result']
             elif 'df' in local_ns and local_ns['df'] is not df:
                 return local_ns['df']
+            elif (isinstance(last, ast.Assign) and len(last.targets) == 1
+                  and isinstance(last.targets[0], ast.Name)):
+                # Code ending in `x = ...` -> return x
+                return local_ns.get(last.targets[0].id)
             else:
                 return None
     
+    @staticmethod
+    def _to_json_value(value: Any) -> Any:
+        """Convert a cell value to something the JSON response can carry."""
+        if isinstance(value, (list, tuple, set, dict, np.ndarray)):
+            return str(value)
+        if pd.isna(value):
+            return None
+        if isinstance(value, np.generic):
+            value = value.item()
+        if isinstance(value, float) and not math.isfinite(value):
+            return None
+        if isinstance(value, (str, bool, int, float)):
+            return value
+        if hasattr(value, 'isoformat'):  # datetime / Timestamp / date
+            return value.isoformat()
+        return str(value)  # Period, Timedelta, Decimal, ...
+
     async def execute_query(self, query: str, datasource: Dict[str, Any]) -> Tuple[bool, Any]:
         """
         Execute the Pandas code and return results.
@@ -197,15 +230,40 @@ Sample values:
             # Execute safely
             result = self._safe_eval(clean_query, df)
             
+            # numpy scalars (e.g. df['x'].max()) -> plain Python so they hit the scalar branch
+            if isinstance(result, np.generic):
+                result = result.item()
+
             # Convert result to serializable format
             if isinstance(result, pd.DataFrame):
+                if isinstance(result.columns, pd.MultiIndex):
+                    result = result.copy()
+                    result.columns = ['_'.join(map(str, c)) for c in result.columns]
                 data = result.head(1000).to_dict(orient='records')  # Limit rows
                 columns = list(result.columns)
                 row_count = len(result)
             elif isinstance(result, pd.Series):
-                data = result.head(1000).to_frame().to_dict(orient='records')
-                columns = [result.name or 'value']
-                row_count = len(result)
+                if len(result) and set(result.index) <= set(df.columns):
+                    # A single row (e.g. df.loc[df['x'].idxmax()]) or a column-wise
+                    # aggregate (e.g. df.sum()): index holds column names, so the
+                    # Series is one record rather than one record per element.
+                    data = [result.to_dict()]
+                    columns = list(result.index)
+                    row_count = 1
+                else:
+                    value_col = str(result.name) if result.name is not None else 'value'
+                    if value_col in result.index.names:
+                        value_col = f"{value_col}_value"
+                    frame = result.head(1000).rename(value_col).to_frame()
+                    index = result.index
+                    # Keep meaningful labels (e.g. groupby keys) as regular columns,
+                    # but not an anonymous integer row index.
+                    if not (index.nlevels == 1 and index.name is None
+                            and pd.api.types.is_integer_dtype(index)):
+                        frame = frame.reset_index()
+                    data = frame.to_dict(orient='records')
+                    columns = list(frame.columns)
+                    row_count = len(result)
             elif isinstance(result, (int, float, str, bool)):
                 data = [{"result": result}]
                 columns = ["result"]
@@ -227,15 +285,15 @@ Sample values:
                 columns = ["result"]
                 row_count = 1
             
+            # Response schema requires string column names; DataFrame/Series labels
+            # can be ints (row labels, numeric headers) or tuples.
+            columns = [str(c) for c in columns]
+            data = [{str(k): v for k, v in row.items()} for row in data]
+
             # Convert any non-serializable types
             for row in data:
                 for key, value in row.items():
-                    if hasattr(value, 'isoformat'):
-                        row[key] = value.isoformat()
-                    elif pd.isna(value):
-                        row[key] = None
-                    elif hasattr(value, 'item'):  # numpy types
-                        row[key] = value.item()
+                    row[key] = self._to_json_value(value)
             
             return True, {
                 "data": data,
