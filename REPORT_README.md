@@ -32,10 +32,9 @@ Use this mapping while converting to the final report PDF:
 Modern teams use multiple kinds of data stores at the same time:
 
 - Relational databases (MySQL/PostgreSQL)
-- Document databases (MongoDB)
 - Flat files (CSV/Excel) for business-side analysis
 
-Most users who need insights from these systems are not experts in SQL, MongoDB query syntax, or Pandas code. This creates a dependency bottleneck where business users must wait for technical users to write queries.
+Most users who need insights from these systems are not experts in SQL or Pandas code. This creates a dependency bottleneck where business users must wait for technical users to write queries.
 
 The core problem solved by IntelliQuery is:
 
@@ -57,10 +56,10 @@ IntelliQuery addresses these with a backend-centric architecture built on FastAP
 
 Primary objectives of this project:
 
-1. Build a unified backend API for NL-to-query execution across SQL, MongoDB, and Pandas datasources.
+1. Build a unified backend API for NL-to-query execution across SQL (MySQL/PostgreSQL) and Pandas (CSV/Excel) datasources.
 2. Enforce strict read-only query constraints at agent level.
 3. Provide secure user authentication using JWT cookie sessions.
-4. Enable datasource onboarding (SQL connect, Mongo connect, file upload for Pandas).
+4. Enable datasource onboarding (SQL connect, file upload for Pandas).
 5. Support visualization suggestion and chart generation from query results.
 6. Support query autocomplete based on datasource schema.
 7. Persist query history by session for chat-like workflows.
@@ -80,7 +79,7 @@ Typical applications for IntelliQuery:
 - Internal data exploration tool for startups and SMB teams
 - Educational platform for teaching query concepts using NL input
 - Rapid ad-hoc analysis over uploaded CSV/Excel files
-- Unified analytics gateway for mixed SQL + Mongo data landscapes
+- Unified analytics gateway for mixed SQL database + spreadsheet data landscapes
 
 Potential domain usage:
 
@@ -116,7 +115,6 @@ IntelliQuery proposes a modular backend architecture:
 - AI router that dispatches queries by datasource type
 - Specialized agents per backend:
   - SQLAgent
-  - MongoAgent
   - PandasAgent
 - Shared LLM integration (Groq)
 - Visualization agent (suggest + generate charts)
@@ -143,7 +141,7 @@ gantt
     Auth and session middleware          :done, b1, 2025-10-14, 7d
     Datasource onboarding APIs           :done, b2, 2025-10-21, 8d
     AI router and agent skeleton         :done, b3, 2025-10-29, 6d
-    SQL/Mongo/Pandas agent logic         :done, b4, 2025-11-04, 12d
+    SQL/Pandas agent logic               :done, b4, 2025-11-04, 12d
     section AI Features
     LLM integration and query refinement :done, c1, 2025-11-16, 8d
     Autocomplete engine                  :done, c2, 2025-11-24, 6d
@@ -180,8 +178,8 @@ Practical synthesis from code-level perspective:
 
 - IntelliQuery uses prompt-based generation plus deterministic validation.
 - It does not trust LLM output directly.
-- It introduces iterative refinement (up to 3 passes) after validation or execution errors.
-- It extends beyond SQL by implementing separate execution and validation logic for MongoDB and Pandas.
+- It introduces iterative refinement (up to 3 passes) after validation or execution errors, with a second LLM acting as a semantic validator.
+- It extends beyond SQL by implementing separate execution and validation logic for SQL databases and Pandas (CSV/Excel) files.
 
 Recommended literature pointers for final report references:
 
@@ -204,11 +202,11 @@ Authentication and user management:
 - Login user
 - Set/clear secure session cookie
 - Resolve current user from cookie middleware
+- Forgot/reset password through an e-mailed, time-limited link
 
 Datasource management:
 
 - Connect to MySQL/PostgreSQL and validate with SELECT 1
-- Connect to MongoDB and validate DB + collection availability
 - Upload CSV/Excel and validate it loads in Pandas
 - List and delete datasources per user
 
@@ -216,8 +214,9 @@ AI query workflows:
 
 - Execute NL query via /ai/query
 - Route by datasource type
-- Generate SQL/Mongo/Pandas query via Groq
-- Validate read-only
+- Reject questions that are not data-analytical (relevance guardrail)
+- Generate SQL/Pandas query via Groq
+- Validate read-only (deterministic check + LLM validator) and refine up to 3 times
 - Execute and return results
 - Persist session history
 
@@ -286,7 +285,7 @@ Maintainability:
 
 #### 4.1.2 Databases and Data Engines
 
-- MongoDB via PyMongo (users, datasources, query_history)
+- MongoDB via PyMongo (users, password_resets, datasources, query_history)
 - MySQL via SQLAlchemy + PyMySQL
 - PostgreSQL via SQLAlchemy + psycopg2
 - Pandas for CSV/Excel query execution context
@@ -294,8 +293,9 @@ Maintainability:
 #### 4.1.3 AI/LLM Stack
 
 - Groq Python SDK
-- Primary model: meta-llama/llama-4-scout-17b-16e-instruct
-- Secondary model in autocomplete: llama-3.3-70b-versatile
+- Primary model: openai/gpt-oss-120b (query generation, relevance check, refinement, chart suggestions, autocomplete)
+- Validator model: llama-3.3-70b-versatile (semantic validation of generated queries)
+- Speech-to-text: whisper-large-v3
 
 #### 4.1.4 Visualization and Reporting
 
@@ -325,7 +325,7 @@ Maintainability:
 
 #### 4.1.8 Development and Testing Assets
 
-- Scripted test files for autocomplete, mongo data, excel data, visualization
+- Scripted test files for autocomplete, Excel data, SQL normal-form classification, visualization
 - Demo data generators and guides
 
 ---
@@ -334,223 +334,127 @@ Maintainability:
 
 ### 5.1 Workflow
 
+![IntelliQuery workflow](Workflow.png)
+
+*Figure 5.1 - End-to-end runtime workflow (Workflow.png).*
+
 Main runtime workflow:
 
-1. User authenticates.
-2. User connects/selects datasource.
-3. User submits text or speech-derived query.
-4. Backend validates user + datasource ownership.
-5. AI router dispatches to specific agent.
-6. Agent extracts schema context.
-7. LLM generates query.
-8. Agent validates query as read-only.
-9. Agent executes query.
-10. Backend persists query history.
-11. Frontend displays tabular result.
-12. Optional: get visualization suggestions and generate chart.
-13. Optional: export CSV/email results.
-
-```mermaid
-flowchart TD
-    A[User Input Text or Voice] --> B[Auth Middleware Validates Session Cookie]
-    B --> C[AI Query Endpoint /ai/query]
-    C --> D[Resolve Datasource by ID]
-    D --> E{Datasource Type}
-    E -->|mysql or psql| F[SQLAgent]
-    E -->|mongo| G[MongoAgent]
-    E -->|pandas| H[PandasAgent]
-    F --> I[Generate Query with Groq]
-    G --> I
-    H --> I
-    I --> J[Read-Only Validation]
-    J -->|valid| K[Execute Query]
-    J -->|invalid| L[Return Validation Error]
-    K --> M[Format Results and Metadata]
-    M --> N[Save query_history Entry]
-    N --> O[Return QueryResponse]
-    O --> P[Optional Visualization Suggest and Generate]
-    O --> Q[Optional Export CSV or Email]
-```
+1. User registers or logs in; the server sets a signed JWT in an HTTP-only cookie.
+2. User connects a datasource (MySQL/PostgreSQL connection or CSV/Excel upload) or selects a saved one.
+3. User submits a typed question (with schema-aware autocomplete) or a spoken one (Groq Whisper speech-to-text).
+4. Backend authenticates the request (AuthMiddleware + require_user) and verifies that the user owns the datasource.
+5. AI router dispatches to SQLAgent (mysql / psql) or PandasAgent (CSV / Excel).
+6. Agent runs the relevance guardrail (Groq); questions that are not data-analytical are rejected with guidance.
+7. Agent extracts schema context.
+8. LLM (Groq) generates the SQL or Pandas query.
+9. Agent validates it: a deterministic read-only check, then an LLM validator (accepted at confidence >= 0.8); the query is refined and re-checked up to 3 times.
+10. Agent executes the query; on an execution error the LLM refines it and execution is retried (up to 3 attempts).
+11. Backend persists the exchange in query_history (successes and failures) and returns QueryResponse with the session_id.
+12. Frontend displays the result table (or the error message).
+13. Optional: visualization suggestions and charts, CSV export, e-mail results, session history.
 
 ### 5.2 Data Flow Diagram
 
-```mermaid
-flowchart LR
-    U[User] --> FE[Frontend React App]
-    FE -->|auth requests| AR[/auth routes/]
-    FE -->|datasource requests| DR[/datasources routes/]
-    FE -->|query requests| AIR[/ai routes/]
+![IntelliQuery data flow diagram](Dataflow.png)
 
-    AR --> UC[(users collection)]
-    DR --> DSC[(datasources collection)]
-    AIR --> QH[(query_history collection)]
+*Figure 5.2 - Data flow between the user, frontend, FastAPI routes, data stores and external services (Dataflow.png).*
 
-    AIR --> R1[(MySQL or PostgreSQL)]
-    AIR --> R2[(MongoDB Data Collection)]
-    AIR --> R3[(Uploaded CSV or Excel)]
+Elements in the diagram:
 
-    AIR --> LLM[Groq API]
-    AIR --> VIZ[Plotly Chart JSON]
-    AIR --> EXP[CSV and Email Output]
-```
+- External entity: the User (browser).
+- External services: Groq API (LLM and Whisper), SMTP server, and the user's own MySQL/PostgreSQL database.
+- Processes: React frontend, and the FastAPI backend with AuthMiddleware (JWT cookie -> request.state.user) in front of three route groups: /auth, /datasources and /ai.
+- Data stores: MongoDB database "intelliquery" (users, password_resets, datasources, query_history) and local file storage data/uploads/<user_id>/ for uploaded CSV/Excel files.
+- Flow colours: teal = authentication, green = datasources, violet = AI queries, charts, speech and export.
+
+Key flows:
+
+- /auth routes read and write users and password_resets; password-reset links are sent through SMTP.
+- /datasources routes read and write datasources (passwords are Fernet-encrypted), save uploaded files to local storage and run a SELECT 1 connection test against the user's SQL database.
+- /ai routes read datasource details (and check ownership) from datasources, read uploaded files, inspect the schema and run read-only SELECT statements on the SQL database, call Groq (generation, relevance, validation, chart suggestions, autocomplete, speech), save and read query_history, send CSV (+ chart PNG) through SMTP, and return QueryResponse, Plotly JSON or CSV to the frontend.
 
 ### 5.3 ER Diagram
 
-```mermaid
-erDiagram
-    USERS ||--o{ DATASOURCES : owns
-    USERS ||--o{ QUERY_HISTORY : creates
-    DATASOURCES ||--o{ QUERY_HISTORY : used_in
+![IntelliQuery ER diagram](ER%20diagram.png)
 
-    USERS {
-        string _id
-        string username
-        string email
-        string password_hash
-        datetime created_at
-    }
+*Figure 5.3 - MongoDB collections and their logical relationships (ER diagram.png).*
 
-    DATASOURCES {
-        string _id
-        string user_id
-        string type
-        object details
-        datetime created_at
-        datetime updated_at
-    }
+Collections in the MongoDB database "intelliquery" (references are logical; MongoDB does not enforce foreign keys):
 
-    QUERY_HISTORY {
-        string _id
-        string user_id
-        string session_id
-        string datasource_id
-        string datasource_type
-        string natural_query
-        string generated_query
-        boolean success
-        int row_count
-        string llm_used
-        string error
-        array results
-        array columns
-        datetime created_at
-    }
-```
+| Collection | Purpose | Key fields |
+| --- | --- | --- |
+| users | Registered accounts | _id, username (unique), email (unique, lower-case), password_hash (PBKDF2-SHA256), created_at |
+| password_resets | One-time password-reset tokens | _id, user_id, token_hash (unique, SHA-256), expires_at (TTL index), used, created_at |
+| datasources | Saved SQL connections and uploaded files | _id, user_id, type (mysql / psql / pandas), details, created_at, updated_at |
+| query_history | One document per question and answer | _id, user_id, session_id, datasource_id, datasource_type, natural_query, generated_query, success, row_count, llm_used, error, results (max 200 rows), columns, created_at |
+
+Relationships:
+
+- users 1 -> 0..* datasources (owns)
+- users 1 -> 0..* query_history (asks)
+- users 1 -> 0..* password_resets (requests)
+- datasources 1 -> 0..* query_history (queried in)
+
+Notes:
+
+- datasources.details embeds either SQL connection settings (type, host, port, database, username, password - Fernet-encrypted) or uploaded-file metadata (filename, path, rows, columns).
+- A chat session is not a separate collection: all query_history documents that share a session_id form one session.
+- user_id is stored as an ObjectId in datasources and as a string in password_resets and query_history.
 
 ### 5.4 UML Diagram
 
-```mermaid
-classDiagram
-    class BaseAgent {
-        +agent_type: str
-        +llm_used: str
-        +get_schema_context(datasource)
-        +validate_readonly(query)
-        +execute_query(query, datasource)
-        +generate_query(natural_query, datasource)
-        +process(natural_query, datasource)
-    }
+![IntelliQuery UML class diagram](UML.png)
 
-    class SQLAgent {
-        +get_schema_context(datasource)
-        +validate_readonly(query)
-        +execute_query(query, datasource)
-        +get_tables_info(datasource)
-    }
+*Figure 5.4 - Backend class diagram (UML.png).*
 
-    class MongoAgent {
-        +get_schema_context(datasource)
-        +validate_readonly(query)
-        +execute_query(query, datasource)
-        +get_collections_info(datasource)
-    }
+Main classes and modules:
 
-    class PandasAgent {
-        +get_schema_context(datasource)
-        +validate_readonly(query)
-        +execute_query(query, datasource)
-        +get_dataframe_info(datasource)
-    }
+- AI Endpoints (ai/router.py): FastAPI controller for the /ai routes; calls AIRouter, VisualizationAgent, QueryAutocomplete, SpeechService, HistoryStore and EmailService.
+- AIRouter: chooses the agent by datasource type (mysql / psql -> SQLAgent, pandas -> PandasAgent), loads the datasource through DatasourceStore, verifies ownership and builds the QueryResponse.
+- BaseAgent (abstract): shared pipeline - relevance check, generation, validation and refinement loop, execution with retry. Abstract operations: get_schema_context, validate_readonly, execute_query.
+- SQLAgent: SQLAlchemy execution for MySQL / PostgreSQL; only SELECT / WITH are allowed; adds a 2NF / 3NF label.
+- PandasAgent: loads CSV / Excel into a DataFrame, blocks forbidden patterns and runs the generated code in a restricted namespace.
+- VisualizationAgent: suggests and generates Plotly charts (13 chart types).
+- QueryAutocomplete: schema-aware suggestions with schema and suggestion caches (5-minute TTL).
+- GroqLLM module: relevance classification, generation, refinement, semantic validation (llama-3.3-70b-versatile) and completions (openai/gpt-oss-120b). SpeechService uses Whisper through the same client.
+- DatasourceStore, HistoryStore, EmailService: persistence and delivery helpers.
+- Pydantic schemas: QueryRequest, QueryResponse, DataSourceType.
 
-    class AIRouter {
-        +route_query(natural_query, datasource_id, user_id)
-        +get_schema_info(datasource_id, user_id)
-    }
-
-    class VisualizationAgent {
-        +suggest_visualizations(results, query_context)
-        +generate_visualization(results, chart_type, x_axis, y_axis, group_by)
-    }
-
-    class QueryAutocomplete {
-        +get_suggestions(partial_query, datasource_id, user_id, limit)
-        +clear_cache(datasource_id)
-    }
-
-    BaseAgent <|-- SQLAgent
-    BaseAgent <|-- MongoAgent
-    BaseAgent <|-- PandasAgent
-    AIRouter --> SQLAgent
-    AIRouter --> MongoAgent
-    AIRouter --> PandasAgent
-    AIRouter --> VisualizationAgent
-    AIRouter --> QueryAutocomplete
-```
+Relationships: SQLAgent and PandasAgent inherit from BaseAgent; AIRouter holds one instance of each agent; BaseAgent, VisualizationAgent, QueryAutocomplete and SpeechService depend on the Groq client; AIRouter and QueryAutocomplete depend on DatasourceStore.
 
 ### 5.5 Activity Diagram
 
-```mermaid
-flowchart TD
-    A[Start] --> B[User submits natural language query]
-    B --> C[Check auth user from request state]
-    C -->|not authenticated| X[Return 401]
-    C -->|authenticated| D[Create or reuse session_id]
-    D --> E[Find datasource and verify owner]
-    E -->|invalid or not owner| Y[Return access error]
-    E --> F[Select agent by datasource type]
-    F --> G[Classify query relevance]
-    G -->|irrelevant| Z[Return polite data-analysis guidance]
-    G -->|relevant| H[Generate query via Groq]
-    H --> I[Read-only validation]
-    I -->|fails| J[Refine with error context up to max iterations]
-    J --> I
-    I -->|passes| K[Execute query]
-    K -->|fails| L[Refine with execution error up to max iterations]
-    L --> I
-    K -->|success| M[Build QueryResponse]
-    M --> N[Save history entry]
-    N --> O[Return response]
-    O --> P[End]
-```
+![IntelliQuery activity diagram](Activity.png)
+
+*Figure 5.5 - Activity (swimlane) diagram of POST /ai/query (Activity.png).*
+
+Swimlanes: Frontend, API (FastAPI + AIRouter), Agent (SQLAgent / PandasAgent), Groq LLM and Data stores.
+
+Highlights:
+
+- Only an unauthenticated request ends early (401 and redirect to /login).
+- Every other failure - datasource not found or not owned, question not data-analytical, validation failed, execution failed after 3 attempts - becomes success = false with an error message; it is still saved to query_history and returned to the UI.
+- Two loops: up to 3 refinement iterations while validating, and up to 3 execution attempts in which the query is refined with the execution error.
 
 ### 5.6 Sequence Diagram
 
-```mermaid
-sequenceDiagram
-    participant U as User
-    participant FE as Frontend
-    participant API as FastAPI /ai/query
-    participant AR as AIRouter
-    participant AG as Agent (SQL/Mongo/Pandas)
-    participant LLM as Groq API
-    participant DB as Target Datasource
-    participant H as History Store
+![IntelliQuery sequence diagram](sequence.png)
 
-    U->>FE: Enter question
-    FE->>API: POST /ai/query {query, datasource_id, session_id?}
-    API->>AR: route_query(query, datasource_id, user_id)
-    AR->>AG: process(query, datasource)
-    AG->>LLM: generate query from schema context
-    LLM-->>AG: generated query text
-    AG->>AG: validate read-only
-    AG->>DB: execute generated query
-    DB-->>AG: rows/columns
-    AG-->>AR: structured result
-    AR-->>API: QueryResponse payload
-    API->>H: save_history_entry(...)
-    API-->>FE: success + results + generated_query + session_id
-    FE-->>U: Render table/chart options
-```
+*Figure 5.6 - Sequence of a natural-language query (sequence.png).*
+
+Participants: User, Frontend, FastAPI, AIRouter, Agent, Groq API, Data source and MongoDB.
+
+Message groups (numbers match the diagram):
+
+- 1-6: question entry (optional voice via POST /ai/speech-to-text and Whisper) and Send.
+- 7-10: POST /ai/query, JWT check (alt: 401), session_id.
+- 11-14: route_query, datasource lookup in MongoDB and ownership check (alt: error response).
+- 15-18: process(), relevance classification (alt: not a data question).
+- 19-22: schema context and query generation.
+- 23-28: validation loop (read-only check, LLM validator, refinement) and the final read-only check.
+- 29-32: execution loop (execute, refine on error).
+- 33-37: result back to the router, save_history_entry, QueryResponse + session_id to the frontend, rendering.
 
 ### 5.7 API Surface Summary (for report appendix)
 
@@ -560,12 +464,13 @@ Authentication endpoints:
 - POST /auth/login
 - POST /auth/logout
 - GET /auth/me
+- POST /auth/forgot-password
+- POST /auth/reset-password
 
 Datasource endpoints:
 
 - GET /datasources/
 - POST /datasources/sql/connect
-- POST /datasources/mongo/connect
 - POST /datasources/pandas/upload
 - DELETE /datasources/{datasource_id}
 
@@ -605,7 +510,7 @@ Implemented in backend/app.py:
 - Registers routers: auth, datasources, ai
 - Startup tasks:
   - ping_db()
-  - ensure_indexes() for users collection
+  - ensure_indexes() for users (unique email, unique username) and password_resets (unique token_hash, TTL on expires_at)
   - Groq client status logging
 
 #### 6.1.2 Authentication and Session Management
@@ -626,6 +531,10 @@ Auth stack implementation details:
   - Resolves public user and injects request.state.user
 - require_user dependency:
   - Enforces auth on protected endpoints
+- Password reset:
+  - forgot-password always returns a generic response (no account enumeration)
+  - Stores only the SHA-256 hash of a random token in password_resets (expires after 30 minutes by default)
+  - Sends the reset link through SMTP; reset-password verifies the token, updates the password hash and marks the token used
 
 #### 6.1.3 Datasource Management
 
@@ -635,13 +544,6 @@ SQL onboarding:
 - Builds SQLAlchemy URL dynamically
 - Executes SELECT 1 to validate connectivity
 - Saves encrypted credentials in datasources collection
-
-Mongo onboarding:
-
-- Connects using URI
-- Pings admin database
-- Validates specified collection exists in target DB
-- Saves datasource metadata
 
 Pandas onboarding:
 
@@ -654,10 +556,10 @@ Pandas onboarding:
 
 BaseAgent pipeline includes:
 
-- Relevance classification
+- Relevance classification (guardrail)
 - Initial query generation
-- Validation-driven refinement loop
-- Execution-driven refinement loop
+- Validation-driven refinement loop (read-only check plus LLM validator, up to 3 iterations)
+- Execution-driven refinement loop (up to 3 attempts)
 - Response normalization
 
 SQLAgent behavior:
@@ -665,13 +567,7 @@ SQLAgent behavior:
 - Extracts schema from inspector (tables, columns, PK/FK)
 - Blocks unsafe SQL keywords and multi-statements
 - Executes with SQLAlchemy and serializes values
-
-MongoAgent behavior:
-
-- Infers schema by sampling collection docs
-- Parses generated JSON into operation format
-- Allows only find/aggregate/count/distinct
-- Adds default limits for result safety
+- Adds a heuristic 2NF / 3NF label (single table vs. joins)
 
 PandasAgent behavior:
 
@@ -679,6 +575,8 @@ PandasAgent behavior:
 - Validates against forbidden patterns and AST
 - Executes in restricted namespace
 - Returns DataFrame/Series/scalar/list as serializable records
+- Multi-statement code returns the value of its last expression (or last assigned variable)
+- Single rows, grouped Series, period labels and numpy values are normalised into JSON-safe records
 
 #### 6.1.5 Visualization Implementation
 
@@ -739,12 +637,11 @@ Capture these screens:
 3. Login page
 4. Dashboard showing quick actions and saved datasources
 5. SQL datasource setup form
-6. Mongo datasource setup form
-7. Spreadsheet upload setup form
-8. Query page with chat panel and session sidebar
-9. Query result table rendering
-10. Visualization suggestion list and rendered chart
-11. Session history load and replay
+6. Spreadsheet upload setup form
+7. Query page with chat panel and session sidebar
+8. Query result table rendering
+9. Visualization suggestion list and rendered chart
+10. Session history load and replay
 
 #### 6.2.2 API and Backend Snapshots
 
@@ -753,27 +650,26 @@ Capture these evidence points:
 1. /auth/register success response
 2. /auth/login response + cookie set
 3. /datasources/sql/connect success
-4. /datasources/mongo/connect success
-5. /datasources/pandas/upload success
-6. /ai/query with SQL datasource
-7. /ai/query with Mongo datasource
-8. /ai/query with Pandas datasource
-9. /ai/visualize/suggest response payload
-10. /ai/visualize/generate chart JSON payload
-11. /ai/autocomplete response in typing flow
-12. /ai/history listing and /ai/history/{session_id}
-13. /ai/export/csv download
-14. /ai/export/email success
-15. /ai/speech-to-text transcription result
+4. /datasources/pandas/upload success
+5. /ai/query with SQL datasource
+6. /ai/query with Pandas datasource
+7. /ai/visualize/suggest response payload
+8. /ai/visualize/generate chart JSON payload
+9. /ai/autocomplete response in typing flow
+10. /ai/history listing and /ai/history/{session_id}
+11. /ai/export/csv download
+12. /ai/export/email success
+13. /ai/speech-to-text transcription result
 
 #### 6.2.3 Database Snapshots
 
 Capture these MongoDB records:
 
 1. users collection sample docs
-2. datasources collection sample docs (password encrypted)
-3. query_history sample docs with session grouping
-4. users indexes (email unique, username unique)
+2. password_resets sample docs (hashed token, expiry)
+3. datasources collection sample docs (password encrypted)
+4. query_history sample docs with session grouping
+5. indexes: users (email unique, username unique) and password_resets (token_hash unique, expires_at TTL)
 
 #### 6.2.4 Test and Validation Snapshots
 
@@ -781,7 +677,7 @@ Capture script outputs for:
 
 - backend/test_autocomplete.py
 - backend/test_excel_data.py
-- backend/test_mongo_data.py
+- backend/test_sql_normal_form.py
 - backend/test_visualization.py
 
 ---
@@ -818,7 +714,7 @@ Auth payloads:
 AI payloads:
 
 - QueryRequest: query, datasource_id, session_id?
-- QueryResponse: success, generated_query, results, columns, row_count, error, llm_used
+- QueryResponse: success, query, generated_query, datasource_type, normal_form, results, columns, row_count, error, llm_used, confidence, session_id
 - VisualizationSuggestRequest/Response
 - VisualizationGenerateRequest/Response
 - AutocompleteRequest/Response
