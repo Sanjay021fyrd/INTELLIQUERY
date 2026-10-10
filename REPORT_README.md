@@ -1,4 +1,4 @@
-# IntelliQuery (Voxalize) Report-Ready README
+# IntelliQuery Report-Ready README
 
 This document is intentionally detailed and structured so another AI agent (or student team) can expand it into a 30-40 page academic or project report without re-reading the full codebase.
 
@@ -38,7 +38,7 @@ Most users who need insights from these systems are not experts in SQL or Pandas
 
 The core problem solved by IntelliQuery is:
 
-- Convert natural language (and speech) into safe, executable queries for multiple datasource types
+- Convert natural language into safe, executable queries for multiple datasource types
 - Execute only read-only operations to prevent accidental data modification
 - Return results in a usable structure and generate visualizations
 - Keep user sessions/history and support real-time query autocomplete
@@ -63,7 +63,7 @@ Primary objectives of this project:
 5. Support visualization suggestion and chart generation from query results.
 6. Support query autocomplete based on datasource schema.
 7. Persist query history by session for chat-like workflows.
-8. Support export and collaboration features (CSV export, email results, speech-to-text input).
+8. Support export and collaboration features (CSV export, email results).
 
 Secondary objectives:
 
@@ -120,7 +120,7 @@ IntelliQuery proposes a modular backend architecture:
 - Visualization agent (suggest + generate charts)
 - Autocomplete engine (schema-aware + cache)
 - History store for session continuity
-- Export/speech integrations
+- Export integrations
 
 Core design principle:
 
@@ -148,7 +148,7 @@ gantt
     Visualization suggestion/generation  :done, c3, 2025-11-30, 10d
     section UX and Extensions
     Query history and session sidebar    :done, d1, 2025-12-10, 6d
-    CSV/email/speech endpoints           :done, d2, 2025-12-16, 7d
+    CSV/email endpoints           :done, d2, 2025-12-16, 7d
     section Validation
     Test scripts and tuning              :done, e1, 2025-12-23, 10d
     Documentation and report prep        :active, e2, 2026-01-03, 8d
@@ -231,7 +231,6 @@ Additional utility features:
 - Session history list/fetch/delete
 - CSV export
 - Email results with optional chart image
-- Speech-to-text for voice input
 
 #### 3.1.2 Non-Functional Requirements
 
@@ -295,7 +294,6 @@ Maintainability:
 - Groq Python SDK
 - Primary model: openai/gpt-oss-120b (query generation, relevance check, refinement, chart suggestions, autocomplete)
 - Validator model: llama-3.3-70b-versatile (semantic validation of generated queries)
-- Speech-to-text: whisper-large-v3
 
 #### 4.1.4 Visualization and Reporting
 
@@ -342,7 +340,7 @@ Main runtime workflow:
 
 1. User registers or logs in; the server sets a signed JWT in an HTTP-only cookie.
 2. User connects a datasource (MySQL/PostgreSQL connection or CSV/Excel upload) or selects a saved one.
-3. User submits a typed question (with schema-aware autocomplete) or a spoken one (Groq Whisper speech-to-text).
+3. User submits a typed question (with schema-aware autocomplete).
 4. Backend authenticates the request (AuthMiddleware + require_user) and verifies that the user owns the datasource.
 5. AI router dispatches to SQLAgent (mysql / psql) or PandasAgent (CSV / Excel).
 6. Agent runs the relevance guardrail (Groq); questions that are not data-analytical are rejected with guidance.
@@ -363,16 +361,16 @@ Main runtime workflow:
 Elements in the diagram:
 
 - External entity: the User (browser).
-- External services: Groq API (LLM and Whisper), SMTP server, and the user's own MySQL/PostgreSQL database.
+- External services: Groq API (LLM), SMTP server, and the user's own MySQL/PostgreSQL database.
 - Processes: React frontend, and the FastAPI backend with AuthMiddleware (JWT cookie -> request.state.user) in front of three route groups: /auth, /datasources and /ai.
 - Data stores: MongoDB database "intelliquery" (users, password_resets, datasources, query_history) and local file storage data/uploads/<user_id>/ for uploaded CSV/Excel files.
-- Flow colours: teal = authentication, green = datasources, violet = AI queries, charts, speech and export.
+- Flow colours: teal = authentication, green = datasources, violet = AI queries, charts and export.
 
 Key flows:
 
 - /auth routes read and write users and password_resets; password-reset links are sent through SMTP.
 - /datasources routes read and write datasources (passwords are Fernet-encrypted), save uploaded files to local storage and run a SELECT 1 connection test against the user's SQL database.
-- /ai routes read datasource details (and check ownership) from datasources, read uploaded files, inspect the schema and run read-only SELECT statements on the SQL database, call Groq (generation, relevance, validation, chart suggestions, autocomplete, speech), save and read query_history, send CSV (+ chart PNG) through SMTP, and return QueryResponse, Plotly JSON or CSV to the frontend.
+- /ai routes read datasource details (and check ownership) from datasources, read uploaded files, inspect the schema and run read-only SELECT statements on the SQL database, call Groq (generation, relevance, validation, chart suggestions, autocomplete), save and read query_history, send CSV (+ chart PNG) through SMTP, and return QueryResponse, Plotly JSON or CSV to the frontend.
 
 ### 5.3 ER Diagram
 
@@ -410,18 +408,18 @@ Notes:
 
 Main classes and modules:
 
-- AI Endpoints (ai/router.py): FastAPI controller for the /ai routes; calls AIRouter, VisualizationAgent, QueryAutocomplete, SpeechService, HistoryStore and EmailService.
+- AI Endpoints (ai/router.py): FastAPI controller for the /ai routes; calls AIRouter, VisualizationAgent, QueryAutocomplete, HistoryStore and EmailService.
 - AIRouter: chooses the agent by datasource type (mysql / psql -> SQLAgent, pandas -> PandasAgent), loads the datasource through DatasourceStore, verifies ownership and builds the QueryResponse.
 - BaseAgent (abstract): shared pipeline - relevance check, generation, validation and refinement loop, execution with retry. Abstract operations: get_schema_context, validate_readonly, execute_query.
 - SQLAgent: SQLAlchemy execution for MySQL / PostgreSQL; only SELECT / WITH are allowed; adds a 2NF / 3NF label.
 - PandasAgent: loads CSV / Excel into a DataFrame, blocks forbidden patterns and runs the generated code in a restricted namespace.
 - VisualizationAgent: suggests and generates Plotly charts (13 chart types).
 - QueryAutocomplete: schema-aware suggestions with schema and suggestion caches (5-minute TTL).
-- GroqLLM module: relevance classification, generation, refinement, semantic validation (llama-3.3-70b-versatile) and completions (openai/gpt-oss-120b). SpeechService uses Whisper through the same client.
+- GroqLLM module: relevance classification, generation, refinement, semantic validation (llama-3.3-70b-versatile) and completions (openai/gpt-oss-120b).
 - DatasourceStore, HistoryStore, EmailService: persistence and delivery helpers.
 - Pydantic schemas: QueryRequest, QueryResponse, DataSourceType.
 
-Relationships: SQLAgent and PandasAgent inherit from BaseAgent; AIRouter holds one instance of each agent; BaseAgent, VisualizationAgent, QueryAutocomplete and SpeechService depend on the Groq client; AIRouter and QueryAutocomplete depend on DatasourceStore.
+Relationships: SQLAgent and PandasAgent inherit from BaseAgent; AIRouter holds one instance of each agent; BaseAgent, VisualizationAgent, QueryAutocomplete depend on the Groq client; AIRouter and QueryAutocomplete depend on DatasourceStore.
 
 ### 5.5 Activity Diagram
 
@@ -447,14 +445,14 @@ Participants: User, Frontend, FastAPI, AIRouter, Agent, Groq API, Data source an
 
 Message groups (numbers match the diagram):
 
-- 1-6: question entry (optional voice via POST /ai/speech-to-text and Whisper) and Send.
-- 7-10: POST /ai/query, JWT check (alt: 401), session_id.
-- 11-14: route_query, datasource lookup in MongoDB and ownership check (alt: error response).
-- 15-18: process(), relevance classification (alt: not a data question).
-- 19-22: schema context and query generation.
-- 23-28: validation loop (read-only check, LLM validator, refinement) and the final read-only check.
-- 29-32: execution loop (execute, refine on error).
-- 33-37: result back to the router, save_history_entry, QueryResponse + session_id to the frontend, rendering.
+- 1-2: question entry and Send.
+- 3-6: POST /ai/query, JWT check (alt: 401), session_id.
+- 7-10: route_query, datasource lookup in MongoDB and ownership check (alt: error response).
+- 11-14: process(), relevance classification (alt: not a data question).
+- 15-18: schema context and query generation.
+- 19-24: validation loop (read-only check, LLM validator, refinement) and the final read-only check.
+- 25-28: execution loop (execute, refine on error).
+- 29-33: result back to the router, save_history_entry, QueryResponse + session_id to the frontend, rendering.
 
 ### 5.7 API Surface Summary (for report appendix)
 
@@ -486,7 +484,6 @@ AI endpoints:
 - GET /ai/history
 - GET /ai/history/{session_id}
 - DELETE /ai/history/{session_id}
-- POST /ai/speech-to-text
 - POST /ai/export/csv
 - POST /ai/export/email
 
@@ -603,7 +600,7 @@ Autocomplete engine:
 - Generates NL suggestions with low-latency prompt
 - Uses fallback keyword suggestion templates on error
 
-#### 6.1.7 History, Export, and Speech Extensions
+#### 6.1.7 History and Export Extensions
 
 History:
 
@@ -617,12 +614,6 @@ Export:
 
 - CSV endpoint converts list-of-dicts to download stream
 - Email endpoint sends CSV and optional chart image via SMTP
-
-Speech:
-
-- Validates audio content type and size (max 25 MB)
-- Uses Groq whisper-large-v3 for transcription
-- Auto-translates non-English to English
 
 ### 6.2 Snapshots
 
@@ -659,7 +650,6 @@ Capture these evidence points:
 10. /ai/history listing and /ai/history/{session_id}
 11. /ai/export/csv download
 12. /ai/export/email success
-13. /ai/speech-to-text transcription result
 
 #### 6.2.3 Database Snapshots
 
@@ -723,7 +713,6 @@ AI payloads:
 - AutocompleteRequest/Response
 - ExportCSVRequest
 - EmailResultsRequest/Response
-- SpeechToTextResponse
 
 ---
 

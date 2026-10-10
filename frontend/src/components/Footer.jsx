@@ -19,7 +19,7 @@ const Footer = () => {
             </div>
 
             <p className="text-gray-400 max-w-md mb-4">
-              Voice-driven conversational analytics platform that lets you query
+              Conversational analytics platform that lets you query
               SQL and spreadsheet-style datasets using natural language.
             </p>
           </div>

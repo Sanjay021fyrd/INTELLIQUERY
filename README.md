@@ -1,6 +1,6 @@
-# IntelliQuery (Voxalize)
+# IntelliQuery
 
-Voxalize (IntelliQuery) is a voice-driven conversational analytics platform. Ask a question in plain English - typed or spoken - about a **MySQL / PostgreSQL database** or an uploaded **CSV / Excel file** and get back a result table, the generated query (so you can check it), and optional charts. A FastAPI backend routes each question to a SQL or Pandas agent, uses Groq-hosted LLMs to generate and validate the query, runs only read-only operations, and keeps a chat history per user.
+IntelliQuery is a conversational analytics platform. Ask a question in plain English about a **MySQL / PostgreSQL database** or an uploaded **CSV / Excel file** and get back a result table, the generated query (so you can check it), and optional charts. A FastAPI backend routes each question to a SQL or Pandas agent, uses Groq-hosted LLMs to generate and validate the query, runs only read-only operations, and keeps a chat history per user.
 
 ## Features
 
@@ -8,7 +8,6 @@ Voxalize (IntelliQuery) is a voice-driven conversational analytics platform. Ask
 - **Read-only by design.** Generated SQL must be a `SELECT` / `WITH` statement without write keywords; generated Pandas code is checked against forbidden patterns and the Python AST and runs in a restricted namespace.
 - **Self-correcting.** A second LLM validates each generated query (accepted at confidence >= 0.8) and the query is refined up to 3 times; execution errors are also repaired by the LLM and retried (up to 3 attempts).
 - **Relevance guardrail.** Questions that are not about data (greetings, general knowledge, coding help) are answered with a request to ask a data-related question.
-- **Voice input.** Speech-to-text through Groq Whisper (non-English speech is translated to English).
 - **Autocomplete.** Schema-aware, LLM-generated suggestions while typing (cached for 5 minutes).
 - **Charts.** The LLM suggests chart types for a result and 13 Plotly chart types can be generated.
 - **Export.** Download results as CSV or e-mail them (CSV plus an optional chart image) over SMTP.
@@ -33,7 +32,7 @@ More diagrams (all generated from the current code):
 - **Frontend:** React 19, Vite, Tailwind CSS v4, React Router, Axios (cookie credentials), Plotly.js / react-plotly.js.
 - **Backend:** FastAPI + Uvicorn, Pydantic, Starlette middleware (CORS and JWT cookie authentication).
 - **Data:** MongoDB (PyMongo) for users, reset tokens, datasources and chat history; SQLAlchemy with PyMySQL / psycopg2 for the user's SQL databases; Pandas + openpyxl for CSV / Excel files.
-- **AI:** Groq SDK - `openai/gpt-oss-120b` (generation, relevance check, refinement, chart suggestions, autocomplete), `llama-3.3-70b-versatile` (query validation), `whisper-large-v3` (speech-to-text).
+- **AI:** Groq SDK - `openai/gpt-oss-120b` (generation, relevance check, refinement, chart suggestions, autocomplete) and `llama-3.3-70b-versatile` (query validation).
 - **Charts and export:** Plotly (Express and Graph Objects), Kaleido (chart images for e-mail), smtplib.
 - **Security:** Passlib (PBKDF2-SHA256), PyJWT, cryptography (Fernet).
 
@@ -85,7 +84,7 @@ Create `backend/.env`:
 ## Project Structure
 
 ```
-backend/      FastAPI app: auth/, datasources/, ai/ (router, agents, llm, autocomplete, history, speech), utils/
+backend/      FastAPI app: auth/, datasources/, ai/ (router, agents, llm, autocomplete, history), utils/
 frontend/     React app: pages/, components/datasource/{common,sql,spreadsheet}, utils/api.js
 *.png         Architecture diagrams (workflow, data flow, ER, UML, activity, sequence)
 REPORT_README.md       Report-ready write-up of the system

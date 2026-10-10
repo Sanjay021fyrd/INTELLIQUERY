@@ -25,9 +25,9 @@ Natural Language Processing, Text-to-SQL, Text-to-Pandas, Large Language Models,
 
 The growing demand for data-driven decision-making across organizations has exposed a critical accessibility gap: non-technical stakeholders—business analysts, operators, and domain experts—frequently lack the technical proficiency to write structured queries in SQL or Pandas code. Existing commercial solutions such as BlazeSQL, DataGPT, and Google Looker Conversational Analytics remain tightly coupled to SQL-only warehouses, are closed-source, and offer limited extensibility for hybrid database environments.
 
-This paper presents **IntelliQuery**, an open-source, research-oriented conversational analytics platform that enables users to query SQL databases (MySQL, PostgreSQL) and CSV/Excel spreadsheets using natural language, typed or spoken. The system employs a modular agent-based architecture where a central AI Router dynamically dispatches user queries to specialized agents—`SQLAgent` and `PandasAgent`—based on the connected datasource type. Every question first passes a relevance guardrail; each agent then uses the Groq-hosted `openai/gpt-oss-120b` model for query generation, followed by layered validation—deterministic read-only checks (keyword and pattern matching, AST parsing) and a second LLM (`llama-3.3-70b-versatile`) acting as a semantic validator—with up to three refinement iterations before execution against the target datastore. Execution errors are repaired by the LLM and retried (up to three attempts).
+This paper presents **IntelliQuery**, an open-source, research-oriented conversational analytics platform that enables users to query SQL databases (MySQL, PostgreSQL) and CSV/Excel spreadsheets using natural language. The system employs a modular agent-based architecture where a central AI Router dynamically dispatches user queries to specialized agents—`SQLAgent` and `PandasAgent`—based on the connected datasource type. Every question first passes a relevance guardrail; each agent then uses the Groq-hosted `openai/gpt-oss-120b` model for query generation, followed by layered validation—deterministic read-only checks (keyword and pattern matching, AST parsing) and a second LLM (`llama-3.3-70b-versatile`) acting as a semantic validator—with up to three refinement iterations before execution against the target datastore. Execution errors are repaired by the LLM and retried (up to three attempts).
 
-The platform additionally features: (i) an LLM-driven visualization recommendation engine that analyzes query result structure to suggest and generate 13 Plotly chart types, (ii) a context-aware autocomplete engine with schema-informed suggestions and TTL caching for sub-500ms response times, (iii) a session-based query history persistence layer backed by MongoDB, (iv) voice input through Groq Whisper speech-to-text, CSV export and e-mail delivery of results, and (v) a secure authentication system with PBKDF2 password hashing, JWT cookie-based sessions, e-mailed password reset, and encrypted credential storage for connected datasources.
+The platform additionally features: (i) an LLM-driven visualization recommendation engine that analyzes query result structure to suggest and generate 13 Plotly chart types, (ii) a context-aware autocomplete engine with schema-informed suggestions and TTL caching for sub-500ms response times, (iii) a session-based query history persistence layer backed by MongoDB, (iv) CSV export and e-mail delivery of results, and (v) a secure authentication system with PBKDF2 password hashing, JWT cookie-based sessions, e-mailed password reset, and encrypted credential storage for connected datasources.
 
 The frontend, built with React 19, Vite, and Tailwind CSS v4, provides a chat-based query interface with real-time autocomplete, interactive Plotly.js visualizations, session management, and multi-datasource switching. Experimental evaluation on synthetic e-commerce datasets (5,000–10,000 records across SQL and CSV) demonstrates the system's ability to correctly translate diverse natural language queries—including aggregations, joins, filters, grouping, and statistical analyses—into executable, read-only database operations across both backends.
 
@@ -63,7 +63,7 @@ The main contributions of this paper are:
 - A **multi-layered read-only validation pipeline** employing regex pattern matching, keyword blacklisting, AST parsing, and statement analysis to prevent destructive operations, complemented by an LLM-based semantic validator and bounded refinement loops that repair rejected or failing queries.
 - An **LLM-driven visualization recommendation system** that analyzes data structure (column types, cardinality, distributions) to suggest and generate 13 chart types using Plotly.
 - A **schema-aware autocomplete engine** with TTL caching that provides sub-500ms query suggestions informed by the connected datasource's schema.
-- A **relevance guardrail** that rejects non-analytical questions, together with voice input (Groq Whisper) and CSV / e-mail export of results.
+- A **relevance guardrail** that rejects non-analytical questions, together with CSV / e-mail export of results.
 - A complete **open-source implementation** with a React frontend, FastAPI backend, and comprehensive test suites, demonstrating feasibility in a realistic e-commerce scenario.
 
 ### D. Paper Organization
@@ -116,7 +116,7 @@ The literature reveals a clear gap: **no existing open-source system combines mu
 
 ### A. High-Level Architecture
 
-IntelliQuery follows a **three-tier architecture**: a React frontend, a FastAPI backend (AuthMiddleware in front of the `/auth`, `/datasources` and `/ai` routers), and a data layer made of MongoDB (application metadata), the user's MySQL/PostgreSQL databases and uploaded CSV/Excel files, plus two external services (Groq for LLM and Whisper, SMTP for e-mail).
+IntelliQuery follows a **three-tier architecture**: a React frontend, a FastAPI backend (AuthMiddleware in front of the `/auth`, `/datasources` and `/ai` routers), and a data layer made of MongoDB (application metadata), the user's MySQL/PostgreSQL databases and uploaded CSV/Excel files, plus two external services (Groq for LLM, SMTP for e-mail).
 
 ![Data flow diagram](Dataflow.png)
 
@@ -138,11 +138,10 @@ IntelliQuery follows a **three-tier architecture**: a React frontend, a FastAPI 
 | Pandas Agent        | Pandas + AST module                           | DataFrame schema extraction, Pandas code generation, sandboxed execution          |
 | Visualization Agent | Plotly Express + Plotly Graph Objects         | Data analysis, chart suggestion (LLM-driven), chart generation (13 types)         |
 | Autocomplete Engine | Groq LLM + TTL cache                          | Real-time schema-aware query suggestions                                          |
-| Speech Service      | Groq Whisper (whisper-large-v3)               | Speech-to-text; non-English audio is translated to English                        |
 | E-mail Service      | smtplib (SMTP)                                | Results e-mail (CSV + chart PNG) and password-reset links                         |
 | History Store       | MongoDB (query_history collection)            | Session-based query persistence, retrieval, deletion                              |
 | Datasource Store    | MongoDB (datasources collection)              | Encrypted credential storage, CRUD for connections                                |
-| LLM Service         | Groq API (gpt-oss-120b, llama-3.3-70b, whisper-large-v3)             | Query generation, relevance, refinement, validation, chart suggestions, autocomplete                         |
+| LLM Service         | Groq API (gpt-oss-120b, llama-3.3-70b)             | Query generation, relevance, refinement, validation, chart suggestions, autocomplete                         |
 
 ### C. Query Processing Pipeline
 
@@ -152,7 +151,7 @@ IntelliQuery follows a **three-tier architecture**: a React frontend, a FastAPI 
 
 ![Sequence diagram](sequence.png)
 
-*Fig. 4. Sequence diagram of a natural-language query: optional voice input, authentication, routing, relevance check, generation, validation, execution and history persistence.*
+*Fig. 4. Sequence diagram of a natural-language query: authentication, routing, relevance check, generation, validation, execution and history persistence.*
 
 The end-to-end query processing pipeline consists of eight stages:
 
@@ -162,7 +161,7 @@ Read-Only + LLM Validation (≤ 3 refinements) → Safe Execution (≤ 3 attempt
 Result Formatting → History Persistence → Frontend Rendering → (optional) Visualization / Export
 ```
 
-**Stage 1: Query Reception.** The frontend sends a POST request to `/ai/query` with the natural language query, datasource ID and (optionally) the session ID; a spoken question is first transcribed through `/ai/speech-to-text`. The Auth Middleware validates the JWT cookie and injects user context; unauthenticated requests receive HTTP 401.
+**Stage 1: Query Reception.** The frontend sends a POST request to `/ai/query` with the natural language query, datasource ID and (optionally) the session ID. The Auth Middleware validates the JWT cookie and injects user context; unauthenticated requests receive HTTP 401.
 
 **Stage 2: Agent Routing.** The `AIRouter` class retrieves the datasource metadata from MongoDB, verifies user ownership, determines the datasource type (mysql/psql → SQL, pandas/csv/excel → Pandas), and dispatches to the corresponding agent.
 
@@ -211,11 +210,10 @@ backend/
 │   └── schemas.py         # Connection request models
 ├── ai/                    # AI query processing
 │   ├── router.py          # Endpoints (/query, /schema, /visualize, /autocomplete,
-│   │                      #            /history, /speech-to-text, /export)
+│   │                      #            /history, /export)
 │   ├── ai_router.py       # AIRouter class (agent dispatch logic)
 │   ├── autocomplete.py    # QueryAutocomplete engine
 │   ├── history_store.py   # Session-based query history
-│   ├── speech.py          # Groq Whisper speech-to-text
 │   ├── schemas.py         # Pydantic models (QueryRequest/Response, etc.)
 │   ├── agents/
 │   │   ├── base.py        # BaseAgent ABC (template method pattern)
@@ -347,7 +345,6 @@ The `QueryPage` component provides a conversational interface where:
 - AI responses display the generated query, result table, and visualization options.
 - Users can switch between sessions via a sidebar.
 - Query history is persisted server-side and can be resumed.
-- A voice recorder transcribes spoken questions into the input box (Groq Whisper).
 - Results can be exported as CSV or e-mailed together with an optional chart image.
 
 #### 4) Datasource-Specific Components
@@ -365,7 +362,7 @@ Common components (`ChatQueryRunner`, `VisualizationPanel`, `SessionSidebar`) pr
 
 #### 1) Model Selection
 
-IntelliQuery uses models hosted on the **Groq inference platform**: `openai/gpt-oss-120b` for query generation, relevance classification, refinement, visualization suggestions and autocomplete; `llama-3.3-70b-versatile` as the semantic validator of generated queries; and `whisper-large-v3` for speech-to-text. Key configuration of the main model:
+IntelliQuery uses models hosted on the **Groq inference platform**: `openai/gpt-oss-120b` for query generation, relevance classification, refinement, visualization suggestions and autocomplete; `llama-3.3-70b-versatile` as the semantic validator of generated queries. Key configuration of the main model:
 
 | Parameter   | Value                                                      | Rationale                                          |
 | ----------- | ---------------------------------------------------------- | -------------------------------------------------- |
@@ -541,11 +538,9 @@ Testing on the sample sales dataset demonstrated successful generation of all 13
 
 3. **Single LLM Provider:** The system currently relies solely on Groq for LLM inference. Provider outages directly impact system availability.
 
-4. **Voice Input Depends on Groq:** Speech-to-text uses Whisper through the Groq API (maximum 25 MB per recording); there is no offline or browser-native fallback.
+4. **Bounded Error Recovery:** Refinement is limited to three iterations while validating and three execution attempts; after that the error is returned to the user without further repair.
 
-5. **Bounded Error Recovery:** Refinement is limited to three iterations while validating and three execution attempts; after that the error is returned to the user without further repair.
-
-6. **No Document-Store Backend:** An earlier prototype included a MongoDB datasource agent. It was removed from the final version, so MongoDB is used only for application metadata (users, reset tokens, datasources and query history).
+5. **No Document-Store Backend:** An earlier prototype included a MongoDB datasource agent. It was removed from the final version, so MongoDB is used only for application metadata (users, reset tokens, datasources and query history).
 
 ### B. Future Work
 
@@ -567,7 +562,7 @@ Testing on the sample sales dataset demonstrated successful generation of all 13
 
 This paper presented **IntelliQuery**, an open-source, multi-backend conversational analytics platform that bridges the gap between non-technical users and heterogeneous data stores. By combining a modular agent-based architecture with LLM-powered query generation, multi-layered read-only safety enforcement, automated visualization recommendation, and context-aware autocomplete, IntelliQuery demonstrates a practical and extensible approach to natural language data exploration.
 
-The system successfully translates natural language queries into executable operations across SQL databases (MySQL, PostgreSQL) and Pandas DataFrames (CSV/Excel files)—typed or spoken, through a unified chat-based interface. The validation pipeline blocks destructive operations for both query languages, employing a defense-in-depth strategy combining a relevance guardrail, prompt-level constraints, regex pattern matching, keyword blacklisting, Python AST parsing, and an LLM semantic validator with bounded refinement.
+The system successfully translates natural language queries into executable operations across SQL databases (MySQL, PostgreSQL) and Pandas DataFrames (CSV/Excel files)—through a unified chat-based interface. The validation pipeline blocks destructive operations for both query languages, employing a defense-in-depth strategy combining a relevance guardrail, prompt-level constraints, regex pattern matching, keyword blacklisting, Python AST parsing, and an LLM semantic validator with bounded refinement.
 
 The LLM-driven visualization engine extends the system's utility beyond raw query results by intelligently recommending and generating 13 chart types based on data structure analysis. The autocomplete engine further enhances usability by providing sub-500ms, schema-aware query suggestions.
 
@@ -652,7 +647,6 @@ IntelliQuery contributes to the growing body of work on democratizing data acces
 | GET    | `/ai/history`                          | List query sessions                         |
 | GET    | `/ai/history/{session_id}`             | Get session messages                        |
 | DELETE | `/ai/history/{session_id}`             | Delete session                              |
-| POST   | `/ai/speech-to-text`                   | Transcribe recorded audio (Groq Whisper)    |
 | POST   | `/ai/export/csv`                       | Download query results as CSV               |
 | POST   | `/ai/export/email`                     | E-mail results (CSV + optional chart image) |
 

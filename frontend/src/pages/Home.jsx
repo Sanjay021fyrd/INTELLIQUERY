@@ -29,7 +29,7 @@ const Home = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           <div className="text-center mb-16">
             <h1 className="text-5xl md:text-7xl font-bold mb-6 bg-gradient-to-r from-yellow-400 via-yellow-500 to-yellow-600 bg-clip-text text-transparent leading-tight">
-              Voice-Driven Analytics
+              Conversational Analytics
               <br />
               <span className="text-4xl md:text-6xl">Made Simple</span>
             </h1>
@@ -139,7 +139,7 @@ const Home = () => {
               </h3>
 
               <p className="text-gray-400">
-                Analyze CSV and Excel files with simple voice commands. No code
+                Analyze CSV and Excel files by asking questions in plain English. No code
                 required.
               </p>
             </Card>

@@ -1,5 +1,5 @@
 """
-Excel/CSV Data Populator for Voxalize Demo (Pandas Agent)
+Excel/CSV Data Populator for IntelliQuery Demo (Pandas Agent)
 Generates 5000 analysis-friendly records for sales/business intelligence demo
 """
 
@@ -190,7 +190,7 @@ def populate_excel():
     """Main function to generate and save Excel/CSV data"""
     
     print("=" * 60)
-    print("Excel/CSV Data Populator for Voxalize Demo")
+    print("Excel/CSV Data Populator for IntelliQuery Demo")
     print("=" * 60)
     
     try:

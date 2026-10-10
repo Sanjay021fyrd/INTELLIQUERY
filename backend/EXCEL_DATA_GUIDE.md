@@ -1,7 +1,7 @@
 # Excel/CSV Demo Data Guide
 
 ## Overview
-This guide explains the Excel/CSV data population script created for the Voxalize Pandas agent demo.
+This guide explains the Excel/CSV data population script created for the IntelliQuery Pandas agent demo.
 
 ## Data Structure
 
@@ -199,7 +199,7 @@ print(df.describe())
 print(df['product_category'].value_counts())
 ```
 
-### Upload to Voxalize
+### Upload to IntelliQuery
 1. Navigate to the Query Page
 2. Connect to Pandas/Excel data source
 3. Upload `sales_data_demo.csv`
@@ -236,11 +236,10 @@ Edit `excel_populator.py`:
 NUM_RECORDS = 10000  # Change to desired number
 ```
 
-## Integration with Voxalize
+## Integration with IntelliQuery
 
 This CSV is designed to work seamlessly with:
 - **Pandas Agent**: Natural language to Pandas queries
 - **Visualization**: Automatic chart generation
-- **Voice Queries**: Voice-to-query conversion
 - **Excel Upload**: Direct file upload support
 

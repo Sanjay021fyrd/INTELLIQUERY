@@ -183,7 +183,7 @@ def main():
     print("✅ All tests completed successfully!")
     print("=" * 60)
     print(f"\n📁 Your CSV file is ready at: {file_path}")
-    print("🚀 Ready for Voxalize Pandas agent queries!")
+    print("🚀 Ready for IntelliQuery Pandas agent queries!")
     print("\nExample queries you can try:")
     print("  • 'What is the total revenue by category?'")
     print("  • 'Show me the top 5 customers by spending'")
