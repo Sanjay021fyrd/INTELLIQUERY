@@ -28,7 +28,7 @@ logging.basicConfig(
 
 app = FastAPI(
     title="IntelliQuery API",
-    description="Conversational database and spreadsheet analytics platform with AI-powered query generation",
+    description="Voice-driven database chat platform with AI-powered query generation",
     version="1.0.0"
 )
 

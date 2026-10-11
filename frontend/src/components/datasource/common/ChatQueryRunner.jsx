@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { aiAPI, formatApiError } from "../../../utils/api";
 import VisualizationPanel from "./VisualizationPanel";
 import ExportActions from "./ExportActions";
+import VoiceRecorder from "./VoiceRecorder";
 
 function PaginatedTable({ results }) {
   const [currentPage, setCurrentPage] = useState(1);
@@ -502,9 +503,16 @@ export default function ChatQueryRunner({
             type="text"
             value={inputValue}
             onChange={handleInputChange}
-            placeholder={placeholder || "Ask a question about your data..."}
+            placeholder={placeholder || "Ask a question or use the mic..."}
             disabled={loading}
             className="flex-1 bg-gray-900 border border-gray-700 rounded-full px-5 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-yellow-600 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
+          />
+          <VoiceRecorder
+            disabled={loading}
+            onTranscript={(text) => {
+              setInputValue((prev) => (prev ? prev + " " + text : text));
+              inputRef.current?.focus();
+            }}
           />
           <button
             type="submit"
